@@ -1,6 +1,6 @@
 # FK Router
 
-[![Router version](https://img.shields.io/badge/router-v0.3.1-6C5CE7)](./SKILL.md)
+[![Router version](https://img.shields.io/badge/router-v0.3.2-6C5CE7)](./SKILL.md)
 [![Activation](https://img.shields.io/badge/activation-explicit--only-0EA5E9)](./agents/openai.yaml)
 
 A Codex skill with GPT-6 Astra High for coordination, project leadership, audits and review. Implementation workers use GPT-5.6 Luna, Terra, Sol or GPT-6 Astra according to task complexity and project policy. Risk determines safeguards and whether independent review is required.
@@ -8,8 +8,20 @@ A Codex skill with GPT-6 Astra High for coordination, project leadership, audits
 The goal is lower total workflow cost, including context transfer, retries and review. Routing thresholds are heuristics; savings and quality improvements are not benchmark-proven.
 
 <p align="center">
-  <img src="docs/risk-router-flow.svg" width="100%" alt="FK Router v0.3.1: explicit activation, project policy, complexity-based worker selection, Astra High coordination and review, validation, bounded attempts and reporting." />
+  <img src="docs/risk-router-flow.svg" width="100%" alt="FK Router v0.3.2: explicit activation, project policy, complexity-based worker selection, Astra High coordination and review, validation, bounded attempts and reporting." />
 </p>
+
+## Efficiency update: v0.3.2
+
+- Discover enough to choose the worker; do not solve the task twice. Keep substantial diagnosis and authorized implementation with one capable owner.
+- Reuse the task contract and route; follow-ups transfer changed facts and failure evidence, not full history.
+- Reuse checks tied to the unchanged revision/environment. Independent review still inspects the diff/source; optional polish does not cause repair loops.
+- Let the coordinator review when genuinely independent; use a separate reviewer when it authored the implementation or detailed solution.
+- Load policy and logging details only when applicable. Evaluate savings using whole-workflow usage and accepted outcomes, not cheap worker calls alone.
+
+An accepted native model/effort request with no effective metadata may satisfy role selection as `accepted_unverified`, unless confirmed identity is explicitly required. It is never reported as confirmed. Missing accepted selection, known mismatch or unavailable required roles remain blockers; successful task acceptance still requires completed checks and review.
+
+These changes reduce avoidable process work; decision simulations and structural checks do not establish production token savings.
 
 ## Routing contract
 
@@ -102,7 +114,10 @@ If the updated skill does not appear, restart Codex. See [official skill documen
 codex-risk-router/
 ├── SKILL.md
 ├── agents/openai.yaml
-├── references/model-notes.md
+├── references/
+│   ├── model-notes.md
+│   ├── project-policy.md
+│   └── statistics.md
 ├── assets/icon.svg
 └── docs/risk-router-flow.svg
 ```
