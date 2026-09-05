@@ -13,6 +13,7 @@ The goal is lower total workflow cost, including context transfer, retries and r
 
 ## Efficiency update: v0.3.2
 
+- No over-engineering: keep architecture, dependencies, agents, documentation and verification proportionate to the real task and risk. Prefer the simplest complete, reliable solution, not speculative future-proofing or maximum process.
 - Discover enough to choose the worker; do not solve the task twice. Keep substantial diagnosis and authorized implementation with one capable owner.
 - Reuse the task contract and route; follow-ups transfer changed facts and failure evidence, not full history.
 - Reuse checks tied to the unchanged revision/environment. Independent review still inspects the diff/source; optional polish does not cause repair loops.

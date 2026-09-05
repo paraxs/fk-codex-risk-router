@@ -13,6 +13,8 @@ Minimize total workflow cost, including discovery, context transfer, retries and
 
 Preserve task scope, architecture and working behavior, including single-HTML/local-use requirements. Add no orchestration infrastructure, custom model-pinned agent TOMLs or nested agent hierarchy. User choices, budget limits and tool restrictions remain binding; routing grants no new action permissions.
 
+**No over-engineering.** Keep solution complexity, abstractions, dependencies, agent count, documentation and verification effort proportionate to the actual task, risk and maintenance needs. Prefer the simplest complete, reliable solution; do not build for hypothetical future requirements. Add complexity only for a concrete current requirement or evidenced risk. Balance quality, cost and elapsed time; neither maximum process nor minimum effort is the goal. Required safety and correctness checks remain mandatory.
+
 Complexity selects worker capability; risk selects safeguards and independent review, not automatically a stronger worker or xHigh. Choose model and reasoning separately; Luna always High and only for bounded, testable work. No automatic Max/Ultra. Model switching requires exposed, permitted runtime controls, not an instruction claiming a switch.
 
 ### Fixed leadership and review roles
