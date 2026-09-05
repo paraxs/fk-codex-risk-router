@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
   <title id="title">Codex Risk Router decision flow</title>
-  <desc id="desc">Explicit activation loads project policy, then scores complexity and risk separately. Complexity routes the worker, risk routes review. Execution is validated, receives at most one same-tier retry, and escalates when needed before reporting.</desc>
+  <desc id="desc">Astra High coordinates explicit routing. Complexity selects implementation workers; risk determines independent Astra High review. Implementation is validated, with one same-route retry and three attempts total before final reporting.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#07111f"/>
@@ -43,9 +43,9 @@
   <rect x="0" y="0" width="1600" height="8" rx="4" fill="url(#accent)"/>
 
   <text x="64" y="64" class="title">Codex Risk Router</text>
-  <text x="64" y="94" class="subtitle">Complexity selects the worker. Risk selects the safeguards.</text>
+  <text x="64" y="94" class="subtitle">Astra High coordinates. Complexity selects workers. Risk sets safeguards.</text>
   <rect x="1325" y="42" width="211" height="36" rx="18" fill="#172554" stroke="#3b82f6"/>
-  <text x="1430" y="65" text-anchor="middle" class="pill">v0.2.1 · explicit-only</text>
+  <text x="1430" y="65" text-anchor="middle" class="pill">v0.3.1 · explicit-only</text>
 
   <!-- Activation -->
   <g filter="url(#shadow)">
@@ -53,7 +53,7 @@
   </g>
   <text x="88" y="180" class="step">01 · ACTIVATE</text>
   <text x="88" y="215" class="head">Explicit trigger</text>
-  <text x="88" y="244" class="mono">$fk-codex-risk-router</text>
+  <text x="88" y="244" class="mono">$codex-risk-router</text>
   <text x="88" y="267" class="small">or repository AGENTS.md</text>
 
   <!-- Policy -->
@@ -64,7 +64,7 @@
   <text x="366" y="180" class="step">02 · LOAD POLICY</text>
   <text x="366" y="215" class="head">Project settings</text>
   <text x="366" y="244" class="mono">mode = efficient | balanced | quality</text>
-  <text x="366" y="267" class="mono">xhigh = auto | ask | disabled</text>
+  <text x="366" y="267" class="mono">astra / xhigh = auto | ask | disabled</text>
 
   <!-- Split to scores -->
   <path d="M692 216 H698 V177 H704" class="line-blue"/>
@@ -102,7 +102,7 @@
   <text x="1130" y="217" class="mono">Efficient  0–4  | 5–7 | 8–9 | 10</text>
   <text x="1130" y="247" class="mono">Balanced   0–3  | 4–6 | 7–8 | 9–10</text>
   <text x="1130" y="277" class="mono">Quality    0–2  | 3–5 | 6–7 | 8–10</text>
-  <text x="1130" y="311" class="small">Luna High · Terra High · Sol High · Sol xHigh*</text>
+  <text x="1130" y="311" class="small">Luna · Terra · Sol · Astra; worker effort by task</text>
 
   <!-- Review route -->
   <path d="M1066 421 H1102" class="line-purple"/>
@@ -110,10 +110,10 @@
     <rect x="1104" y="362" width="432" height="190" rx="18" class="purple-card"/>
   </g>
   <text x="1130" y="394" class="step" style="fill:#c4b5fd">04B · REVIEW ROUTE</text>
-  <text x="1130" y="429" class="head">Risk-based reviewer</text>
-  <text x="1130" y="460" class="mono">R 0–2  self*  ·  R 3–5  Terra High</text>
-  <text x="1130" y="490" class="mono">R 6–8  Sol H  ·  R 9–10 Sol xHigh*</text>
-  <text x="1130" y="524" class="small">C 6–10 sets a Sol High reviewer floor</text>
+  <text x="1130" y="429" class="head">Astra High review</text>
+  <text x="1130" y="460" class="mono">R 0–2: tests pass → no separate review</text>
+  <text x="1130" y="490" class="mono">Otherwise: independent Astra High</text>
+  <text x="1130" y="524" class="small">All audits/reviews: exactly Astra High</text>
 
   <!-- Direct gate -->
   <path d="M886 516 V572" class="line-muted"/>
@@ -140,8 +140,8 @@
     <rect x="706" y="746" width="830" height="112" rx="18" class="card"/>
   </g>
   <text x="732" y="778" class="step">06 · RECOVER OR ESCALATE</text>
-  <text x="732" y="814" class="head">One same-tier corrective retry maximum</text>
-  <text x="732" y="840" class="body">Then: Luna → Terra → Sol High → Sol xHigh* · stop on scope expansion or blocked boundary</text>
+  <text x="732" y="814" class="head">One same-route retry; three attempts total</text>
+  <text x="732" y="840" class="body">Workers: Luna → Terra → Sol → Astra · respect ceilings · stop at the attempt limit</text>
 
   <!-- Report -->
   <path d="M1121 858 V894" class="line-blue"/>
@@ -152,6 +152,6 @@
   <text x="390" y="949" class="body">Scores · requested/runtime route · fallback · review · validation · escalation · uncertainty · optional JSONL stats</text>
 
   <!-- Legend -->
-  <text x="64" y="930" class="small">* subject to deterministic checks</text>
-  <text x="64" y="952" class="small">or project xHigh policy</text>
+  <text x="64" y="930" class="small">Leadership/review: Astra High</text>
+  <text x="64" y="952" class="small">Unavailable role → blocked</text>
 </svg>

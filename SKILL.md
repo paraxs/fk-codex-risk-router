@@ -1,367 +1,192 @@
 ---
-name: fk-codex-risk-router
-description: Route Codex coding work across GPT-5.6 Luna, Terra, and Sol using separate complexity and risk scores, a small per-project cost/quality policy, bounded subagent tasks, risk- and complexity-based independent review, limited retries, escalation, and lightweight routing statistics. Use when explicitly invoked as `$fk-codex-risk-router` or when applicable `AGENTS.md` project guidance requires it; do not invoke implicitly for ordinary coding work.
+name: codex-risk-router
+description: Require GPT-6 Astra High for orchestration, project leadership, audits and review; route implementation workers across Luna, Terra, Sol and Astra by complexity, risk and workflow cost. Use when the user invokes FK Router or $codex-risk-router, or applicable AGENTS.md requires it. Preserve explicit-only activation, project policy, bounded retries and independent review.
 ---
 
-# Codex Risk Router
+# FK Router — Codex Risk Router
 
-Router version: `0.2.1`
+Router version: `0.3.1` · Model documentation checked: `2026-09-05`
 
-## Goal
+## Goal and boundaries
 
-Use the cheapest sufficiently capable GPT-5.6 model for each bounded coding task without sacrificing reliability or spending more on orchestration than the work justifies.
+Choose the least costly route likely to meet the task's acceptance criteria, including context transfer, retries and review. Do not optimize token count at the expense of correctness. Model roles and supported identifiers are documented; the thresholds below are project heuristics, not benchmark-proven optima.
 
-Workflow:
+Preserve the existing task, architecture and working behavior. For single-HTML projects, preserve single-HTML/local-use requirements. Add no orchestration service, custom model-pinned agent TOMLs, dashboard, database or nested agent hierarchy.
 
-`activation -> project policy -> classify -> direct or delegate -> execute -> validate -> review -> escalate if needed -> report`
+- Complexity selects implementation worker capability; risk selects safeguards and whether independent review is required.
+- High risk alone does not require an Astra implementation worker or xHigh. Leadership and review have the fixed role requirement below.
+- Preserve the existing Luna High convention; Luna only receives explicit, bounded, testable tasks.
+- Choose reasoning separately from model. No automatic `max` or `ultra`.
+- A skill cannot change its own running model by instruction. Use only exposed, permitted runtime controls; never claim a switch without evidence.
+- Explicit user choices, budget limits and tool restrictions remain binding. Worker ceilings are separate from the fixed leadership/review requirement. Existing authorization remains valid; routing grants no new action permissions.
 
-Do not add an orchestration service, MCP server, database, dashboard, Agents SDK layer, or nested agent hierarchy.
+### Fixed leadership and review roles
 
-## Invariants
+Always assign **orchestrator/router, project lead, auditor and reviewer/checker** to **`gpt-6-astra` with `reasoning_effort = "high"`**. This is the user's standing role policy, independent of task complexity, risk and working mode. High means exactly High, not Medium, xHigh, Max or Ultra.
 
-- Score **complexity** and **risk** separately.
-- Complexity selects the worker; risk selects safeguards and review strength.
-- High risk alone does not imply xHigh reasoning.
-- Luna always uses High reasoning; do not downgrade it to Medium or Low.
-- Luna receives only bounded, explicit, testable work.
-- Direct execution is allowed only for eligible micro-tasks under the delegation gate; otherwise follow the worker routing table.
-- Prefer native `spawn_agent` with explicit `model` and `reasoning_effort` overrides over model-pinned custom agent TOMLs.
-- Default child context to `fork_turns = "none"`.
-- A worker may get at most one same-tier corrective retry.
-- Scope expansion causes `BLOCKED` or escalation, never silent expansion.
-- Do not claim a requested model was actually used unless runtime metadata confirms it.
-- `max` reasoning is out of scope for v0.2.1.
+Use one Astra High coordinator for task classification, scope, worker selection, escalation and final acceptance. These role names do not require four agents. An independent reviewer must use an Astra High thread separate from the implementation thread; the coordinator may also review a worker's work if it did not implement the change and has an independent context. A coordinator that implemented a change cannot count its own review as independent.
 
-## 1. Activation and delegation gate
+Establish the required coordinator model/effort using supported native controls before making routing or project-lead decisions. If the current session differs, use a supported model handoff/selection; do not merely label it Astra or create a nested coordinator hierarchy. If Astra High is unavailable, forbidden by a binding restriction or mismatched at runtime, report the affected leadership/review role as BLOCKED and the needed model setting/access. **No substitute model or different effort for these roles.** An accepted override without effective metadata remains `accepted_unverified`, never confirmed.
 
-This skill is explicit-only. Activate it only when either:
-- the user explicitly invokes `$fk-codex-risk-router`; or
-- applicable project instructions in `AGENTS.md` require `$fk-codex-risk-router`.
+Implementation workers may use the routing table and run deterministic tests, collect evidence and report results. They do not become the auditor, project lead or final approver. This fixed-role rule does not add independent review to eligible micro-tasks.
 
-Otherwise, do not apply this router to ordinary coding work.
+## 1. Activation and policy
 
-The presence of `.codex/risk-router.toml` is project policy, not an activation trigger. Do not assume that the file can activate this skill by itself.
+Activate only when explicitly requested by name or required by applicable `AGENTS.md`. A policy file alone is not an activation trigger. Maintaining this skill is not itself an instruction to route unrelated work.
 
-Once active, classify the task before deciding whether to spawn.
+Read applicable `AGENTS.md` and `.codex/risk-router.toml` once per task/session unless they change. Preserve existing files, unknown keys and opt-in policy. Accept `quality-first` as an alias for existing mode `quality`.
 
-Direct execution is a micro-task shortcut, not an alternative routing tier.
-
-Use direct execution only when ALL conditions are true:
-- complexity <= 2
-- risk <= 2
-- no independent review is required
-- the change is narrowly localized
-- validation is deterministic
-- delegation would add obvious overhead for a trivial change
-
-For complexity >= 3, follow the worker routing table.
-
-Do not bypass Luna, Terra, or Sol merely because the current agent is already capable of doing the work.
-
-If the current parent model or reasoning effort is unknown, do not assume that direct execution is cheaper than delegation.
-
-For tasks that do not qualify for direct execution, delegate according to the worker routing table. Do not keep work in the current agent merely because it is already running, stronger than the routed worker, or appears capable of completing the task itself.
-
-For direct execution, record the worker as `direct`, the runtime status as `direct`, and continue with the same validation and reporting discipline. Do not spawn a token worker merely to satisfy the routing table.
-
-## 2. Project policy
-
-Before the first skill-managed task, read `.codex/risk-router.toml`.
-
-If absent, ask exactly:
-
-1. `Working mode? A = Efficient, B = Balanced, C = Quality First`
-2. `Use Sol xHigh for very difficult tasks? A = automatically, B = ask first, C = disabled / Sol High is the maximum`
-
-Then create:
+Existing schema `version = 1` remains supported. Optional `astra` extends it; a version migration is unnecessary:
 
 ```toml
 version = 1
 mode = "balanced" # efficient | balanced | quality
 xhigh = "ask"      # auto | ask | disabled
 stats = true
+astra = "auto"     # implementation workers: auto | ask | disabled; optional
 ```
 
-Map answers directly.
-
-On first project opt-in, also add this single instruction to the applicable project `AGENTS.md`, preserving existing content and avoiding duplicates:
+Interpretation:
+- `xhigh`: applies to Sol and Astra implementation workers; leadership/review stay exactly High. `auto` permits a justified xHigh route; `ask` needs task-scoped approval unless already granted; `disabled` forbids xHigh. Never route around a refusal with Max/Ultra.
+- `astra`: controls implementation workers only. `auto` permits Astra when warranted; `ask` needs task-scoped approval unless already granted; `disabled` caps implementation model choice at Sol. Astra High leadership/review is already authorized by the standing role policy; do not ask for that authorization again.
+- Backward compatibility: missing `astra` means `auto`, EXCEPT an existing `xhigh = "disabled"` policy without `astra` retains a **Sol High maximum for implementation workers**. An explicit `astra = "auto"` permits Astra workers up to High even with xHigh disabled. From v0.3.1, the user-authorized fixed-role rule supersedes the old router ceiling for leadership/review only; state this distinction when relevant and preserve the file. A separate binding access/budget restriction or a later explicit user prohibition still blocks the role, rather than permitting a substitute.
+- Missing policy: use task-local `balanced`, `xhigh = "ask"`, `astra = "auto"`, `stats = false`; do not interrupt ordinary work with setup questions or create project files just to run the router.
+- Persist policy only when project setup/persistence is requested or already authorized. Reuse stated preferences. Add the following opt-in line to applicable `AGENTS.md` only as part of that setup, preserving other content and avoiding duplicates:
 
 ```text
-For coding tasks in this repository, use $fk-codex-risk-router and follow .codex/risk-router.toml.
+For coding tasks in this repository, use $codex-risk-router and follow .codex/risk-router.toml.
 ```
 
-Before asking the two setup questions, state that the answers will persist the project opt-in through `.codex/risk-router.toml` and this `AGENTS.md` instruction. If the user requests one-off routing instead, use `balanced`, `xhigh = "ask"`, and `stats = false` for that task without creating or modifying either file.
+These are router policy fields, not native Codex model configuration. Do not rewrite global client settings. A request to update this skill does not update separate copies on a user's PC automatically.
 
-Rules:
-- `auto`: use xHigh when routing selects it.
-- `ask`: ask once for that task before xHigh.
-- `disabled`: Sol High is the ceiling.
-- Do not ask more setup questions unless a material project constraint cannot fit this policy.
+## 2. Classify a bounded task
 
-## 3. Complexity score
+Score factors 0–2 each; use the sum 0–10. Do not print all factors routinely.
 
-Score each factor 0-2.
-
-| Factor | 0 | 1 | 2 |
+| Complexity factor | 0 | 1 | 2 |
 |---|---|---|---|
-| Ambiguity | exact change/cause | some unknowns | root cause/approach substantially unknown |
-| Coupling | isolated | one subsystem/several files | multiple subsystems/services/layers |
-| Causal depth | local/deterministic | non-trivial state/data flow | concurrency, distributed state, race/lifecycle behavior |
-| Architecture/novelty | established pattern | moderate design choice | new architecture/major tradeoff/unfamiliar territory |
-| Context breadth | narrow | moderate repo context | broad repo/cross-system understanding |
+| Ambiguity | exact change/cause | some unknowns | cause/approach substantially unknown |
+| Coupling | isolated | one subsystem/several files | multiple subsystems/layers |
+| Causal depth | local/deterministic | non-trivial data flow | concurrency/distributed state/lifecycle |
+| Architecture/novelty | known pattern | moderate choice | major tradeoff/new architecture |
+| Context breadth | narrow | moderate | broad cross-system context |
 
-`COMPLEXITY = sum` (0-10)
+Complexity floors: architectural refactor/unresolved cross-system design C >= 7; race condition/distributed-state diagnosis/severe cross-system uncertainty C >= 8. Mechanical volume alone does not increase C.
 
-Floors:
-- architectural refactor or unresolved cross-system design: `>= 7`
-- race condition, distributed-state diagnosis, severe multi-system debugging uncertainty: `>= 8`
-
-Mechanical volume alone does not raise complexity.
-
-## 4. Risk score
-
-Score each factor 0-2.
-
-| Factor | 0 | 1 | 2 |
+| Risk factor | 0 | 1 | 2 |
 |---|---|---|---|
-| Blast radius | isolated | module/feature regression | system-wide/many users or components |
-| Data/security | none | indirect/limited | auth, permissions, secrets, security boundary, data integrity |
-| Reversibility | clean revert | multi-step rollback | migration, external/irreversible state |
-| Side effects | local | shared/staging | production, live data, deployment, billing, external write |
-| Verification | strong deterministic checks | partial | weak observability/material residual uncertainty |
+| Blast radius | isolated | feature/module | system-wide |
+| Data/security | none | indirect/limited | data integrity/auth/secrets/security boundary |
+| Reversibility | clean revert | multi-step rollback | migration/irreversible state |
+| Side effects | local | shared/staging | production/billing/external write |
+| Verification | strong deterministic checks | partial | weak observability/material uncertainty |
 
-`RISK = sum` (0-10)
+Risk floors: auth/permissions/secrets/security boundaries, persistent-data migration, destructive or production-infrastructure mutation R >= 8; unknown data-loss risk or irreversible external side effect R >= 9.
 
-Floors:
-- auth, permissions, secrets, security boundary: `>= 8`
-- persistent-data/database migration: `>= 8`
-- destructive or production-infrastructure mutation: `>= 8`
-- unknown data-loss risk or irreversible external side effect: `>= 9`
+For calculations, geometry, quantities, technical rules and data persistence, validate substantive invariants against known examples or authoritative requirements. Neither a low C nor a strong model replaces that check. Do not change domain rules based on model confidence alone.
 
-Risk changes validation, review, and approval requirements. Do not upgrade worker reasoning solely because risk is high.
+## 3. Worker and reasoning
 
-## 5. Worker routing
+Use only model/effort combinations exposed by the current runtime. Exact identifiers:
 
-Use explicit GPT-5.6 slugs.
+| Model | Identifier | Routing role |
+|---|---|---|
+| Luna | `gpt-5.6-luna` | clear, repeatable, tightly specified work |
+| Terra | `gpt-5.6-terra` | everyday implementation and localized debugging |
+| Sol | `gpt-5.6-sol` | complex code changes and ambiguous diagnosis |
+| Astra | `gpt-6-astra` | hardest cross-system diagnosis, architecture and sustained multi-step work |
 
-| Mode | Luna High | Terra High | Sol High | Sol xHigh* |
-|---|---:|---:|---:|---:|
-| efficient | C 0-4 | C 5-7 | C 8-9 | C 10 |
-| balanced | C 0-3 | C 4-6 | C 7-8 | C 9-10 |
-| quality | C 0-2 | C 3-5 | C 6-7 | C 8-10 |
+Initial implementation worker selection, before worker ceilings and the execution gate; never use this table for leadership, audits or review:
 
-Models:
-- Luna: `gpt-5.6-luna`
-- Terra: `gpt-5.6-terra`
-- Sol: `gpt-5.6-sol`
+| Mode | Luna | Terra | Sol | Astra |
+|---|---|---|---|---|
+| efficient | C 0–4 | C 5–7 | C 8–9 | C 10 |
+| balanced | C 0–3 | C 4–6 | C 7–8 | C 9–10 |
+| quality | C 0–2 | C 3–5 | C 6–7 | C 8–10 |
 
-`*` xHigh is subject to project policy. If unavailable or disallowed, use Sol High and record the ceiling/fallback.
+Initial implementation-worker reasoning (leadership/review always Astra High):
+- Luna: High, preserving established policy.
+- Terra: Medium for clear implementation; High for C >= 6 or unresolved non-trivial state/data flow.
+- Sol: Medium for bounded work with an established approach; High for C >= 8 or unresolved diagnosis/design.
+- Astra: High for C >= 9 or unresolved cross-system diagnosis; Medium for a bounded C 8 analysis with clear inputs and acceptance criteria.
+- xHigh: only when a specific unresolved reasoning problem warrants it, lower effort is unlikely to suffice or has failed, and policy permits it. Never selected merely by risk score or model prestige.
 
-If the native spawn surface rejects a requested model/effort, use the next stronger available compatible route when possible. Do not loop on unavailable combinations.
+Use Astra directly when initial complexity warrants it; do not first spend tokens on a predictable ladder of failures. If Astra resolves the cause/design into a clear implementation, reclassify that implementation and route it separately only when the handoff will pay off. Do not keep Astra for follow-up mechanical edits by inertia.
 
-## 6. Bounded delegation
+## 4. Execute with proportionate overhead
 
-Use a native implementation/worker role for code changes and a read-only/explorer role for discovery or review when available.
+Choose one execution mode:
+1. `direct`: a localized micro-task with C <= 2, R <= 2, deterministic validation and no independent review need; delegation adds obvious overhead. The Astra High coordinator may perform this micro-task itself, subject to the fixed-role runtime truth rule; do not claim cost savings without measurements.
+2. `current`: the exposed current worker model AND effort match the selected allowed implementation route; continue that worker session under Astra High coordination. No duplicate worker for the same work. Required independent review still applies.
+3. `delegated`: native delegation is available and permitted; request the routed model/effort explicitly. Do not keep substantial work in a more expensive current model simply because it is capable.
+4. `fallback_current`: implementation model control/delegation is absent or blocked and the current session is permitted and capable of attempting the implementation. This is a worker fallback only; Astra High coordination remains required. State the limitation, run proportionate validation and never claim the recommended model ran. Do not bypass an explicit model/cost ceiling. If the minimum necessary capability or review cannot be provided, report `BLOCKED` for that phase.
 
-Default:
-- set `model` explicitly
-- set `reasoning_effort` explicitly
-- set `fork_turns = "none"`
-- restate only necessary context in the child message
-- use a small positive turn count only when restating required context would be materially worse
-- never default to `fork_turns = "all"`
+Treat live tool metadata as authoritative; a stale model cache or public model page does not prove account access. Prefer advertised native controls over custom launchers. Do not spawn agents only to narrate routing, repeat completed analysis or circumvent a delegation restriction.
 
-Every implementation handoff should contain:
+When an implementation route is unavailable, try an untried compatible permitted worker route once, then use a safe available worker fallback or report the blocker. An unavailable/disabled Astra implementation worker may fall back to Sol High, or Sol xHigh only when justified and permitted. These fallbacks never apply to the coordinator, project lead, auditor or reviewer. Never retry a model-not-found combination or loop through aliases. Authentication/network/tool failures require fixing their cause, not a stronger reasoning model.
 
-```text
-TASK:
-<one bounded task>
+## 5. Bounded handoff and context budget
 
-GOAL:
-<observable outcome>
+Use native worker or read-only review roles when exposed. Set `model` and `reasoning_effort` explicitly, and normally `fork_turns = "none"`. Use a small positive turn count only when necessary; never default to full-history forks, which may disable overrides.
 
-SCOPE:
-<relevant files/components>
+Give a worker only:
+- TASK and observable GOAL;
+- relevant files/functions and source facts;
+- boundaries and already-authorized scope;
+- acceptance criteria and targeted validation;
+- prior failed hypothesis/error when escalating;
+- STOP: return BLOCKED before unauthorized scope expansion or action.
 
-DO NOT CHANGE:
-<explicit boundaries>
+Workers do not invoke this router recursively or append router statistics. Use at most one implementation worker per coupled change. Parallel workers are useful only for independently owned tasks whose gains justify duplicated context; do not split coupled single-HTML edits across simultaneous writers.
 
-ACCEPTANCE CRITERIA:
-<concrete pass conditions>
+Search narrowly (`rg`), read affected functions and callers, batch independent reads, reuse validated findings. Transfer file references and concise evidence rather than whole files/chat history. Keep stable instructions stable. Do not repeatedly research model docs per task: consult [model-notes.md](references/model-notes.md) only for availability, future model updates or a source question.
 
-VALIDATION:
-<tests/checks>
+## 6. Validate and review
 
-STOP:
-If material scope expansion, destructive/external action, new security-sensitive work,
-migration work not already authorized, or changes outside the boundary are required,
-return BLOCKED with the reason and required scope.
-```
+Define acceptance criteria before editing. Run relevant targeted tests, build/type checks or smoke tests; add a regression test when it covers the actual bug/risk. Do not add implementation-mirroring tests for harmless edits. Stop testing when acceptance criteria and required gates pass; expand only for a concrete residual risk.
 
-Never give Luna an open instruction such as `improve the user system`.
+PDF layout changes require visual inspection of representative exports. Storage/import/migration changes require disposable-data round trips and preservation/error-path checks. State unavailable checks and their practical consequence.
 
-Large but mechanical work should be decomposed instead of escalated merely because it is large.
+Independent review requirement:
 
-## 7. Validation
-
-After implementation run the most relevant non-destructive checks available:
-- targeted tests
-- type/lint checks when applicable
-- affected build checks
-- minimal smoke test if full validation is too expensive
-
-If validation cannot run, state why and treat verification confidence as weaker.
-
-## 8. Independent review
-
-A worker does not automatically approve its own non-trivial work.
-
-| Risk | Review |
+| Risk | Review requirement |
 |---|---|
-| 0-2 | worker validation is enough if deterministic and tests pass; otherwise Terra High |
-| 3-5 | independent Terra High |
-| 6-8 | independent Sol High |
-| 9-10 | independent Sol xHigh if policy permits; otherwise Sol High + strongest practical verification |
+| R 0–2 | no separate reviewer when deterministic checks pass; otherwise independent Astra High |
+| R 3–10 | independent Astra High |
 
-When independent review is required, also apply this complexity floor:
+Every model-based audit or review uses **Astra High**, including explicitly requested audits of low-risk work. Risk and complexity affect review scope and practical checks, never the reviewer's model or effort. Terra/Sol reviewer routes and reviewer xHigh/Medium substitutions are not permitted. If Astra High cannot perform a required review, acceptance remains BLOCKED; a Sol review is not a compliant fallback.
 
-| Complexity | Minimum reviewer |
-|---|---|
-| 0-5 | Terra High |
-| 6-10 | Sol High |
+Give the independent Astra High reviewer intended behavior, relevant diff, constraints and test results. Inspect correctness, regressions and missing meaningful checks; do not repeat the implementation. One substantive review plus focused verification of resulting fixes is normally enough. No duplicate review just to create separate auditor and checker titles.
 
-Use the stronger of the risk-based review tier and the complexity floor. This floor does not force independent review for `R 0-2` when deterministic checks pass.
+If an independent review is required but unavailable, report it as missing, never substitute self-review as independent. Complete safe preparation; mark acceptance blocked where that gate remains required. An unresolved material finding prevents `pass`.
 
-Reviewers:
-- use a separate thread/subagent
-- default to `fork_turns = "none"`
-- receive intended behavior, changed scope/diff, constraints, and validation results
-- look for correctness, regressions, security issues, and missing tests
-- do not re-implement unless explicitly delegated after review
+## 7. Retry, escalation and stopping
 
-Normal approval boundaries still apply to destructive actions, production changes, deployments, purchases, and external writes.
+Allow at most one same-route corrective retry, only for an understood bounded defect. Across a bounded objective, permit at most **three implementation attempts total**, including the initial attempt, corrections and attempts after switching models. A model switch or renaming the task does not reset the budget. Provider failures before execution do not count as implementation attempts; availability retries remain bounded by section 4.
 
-## 9. Retry and escalation
+On unclear cause, repeat failure or increased complexity, reclassify and select the next justified route directly. Typical implementation capability progression: Luna -> Terra -> Sol -> Astra. The Astra High coordinator decides escalation and remains at High. Raising implementation-worker effort within Sol/Astra is an alternative when deeper reasoning on the same well-defined problem is likely to help; these are not compulsory consecutive steps.
 
-One same-tier corrective retry is allowed only when the failure is understood, bounded, and does not materially change risk or complexity.
+Do not alternate models on the same unresolved error. Do not escalate for missing credentials, required user data or permissions. At the attempt limit or policy ceiling, stop speculative edits; report evidence, remaining blocker and the concrete next step. Continue unrelated authorized safe work where useful. New attempts require a materially new input/approach and authorization rather than an automatic retry loop.
 
-Escalate when:
-- that retry fails
-- root cause remains unclear
-- scope materially expands
-- a stop boundary is crossed
-- complexity crosses the next routing threshold
-- a corrected result is rejected again
+## 8. Runtime truth and lightweight statistics
 
-Escalation:
+Never present a requested model as confirmed merely because spawn accepted it. Use:
+- `direct`: no worker/model switch, micro-task;
+- `confirmed`: runtime model AND effort match the selected route;
+- `accepted_unverified`: override accepted but effective model/effort not exposed;
+- `mismatch`: exposed runtime differs;
+- `unavailable`: selected route cannot run.
 
-`Luna -> Terra -> Sol High -> Sol xHigh (policy permitting)`
+`execution_mode` is `direct`, `current`, `delegated` or `fallback_current`; it is separate from runtime status. For a mismatch, recheck capability and policy before accepting results. Record runtime model/effort only when exposed; otherwise null. Apply the same truth rule separately to the Astra High coordinator and reviewers. Record their requested model/effort, actual model/effort when exposed and runtime status; worker metadata does not prove the coordinator identity.
 
-If Sol High is the project ceiling and cannot resolve the task reliably, stop and report the limitation. Never silently override project policy.
-
-## 10. Runtime truth
-
-Treat the current native spawn surface as the capability source.
-
-For every skill-managed task record one runtime status:
-- `direct`: no worker was spawned; the current session executed the task
-- `confirmed`: exposed runtime model/effort matches the request
-- `accepted_unverified`: spawn accepted the override but effective runtime metadata is not exposed
-- `mismatch`: exposed runtime metadata differs
-- `unavailable`: requested route could not spawn
-
-Do not convert `accepted_unverified` into a claim that Luna/Terra/Sol definitely ran.
-
-## 11. Lightweight statistics
-
-If `stats = true`, append one compact JSON object per skill-managed task to:
-
-`.codex/risk-router-log.jsonl`
-
-Do not log source code, prompts, diffs, secrets, or user data.
-
-Only the parent/router appends statistics, after validation and any required review are complete. Subagents never write to `.codex/risk-router-log.jsonl` and never determine the final `outcome` themselves.
-
-Every statistics entry must include the current `router_version`. This is the behavioral router version and is independent of the project policy schema field `version = 1`.
-
-For delegated execution, use fields like:
+If `stats = true`, only the parent appends one compact JSON object per bounded task to `.codex/risk-router-log.jsonl` after validation/review or a final block. Preserve existing entries/schema compatibility. Do not log code, prompts, diffs, secrets or user data. Example (one JSONL line):
 
 ```json
-{
-  "router_version": "0.2.1",
-  "task": "short non-sensitive label",
-  "complexity": 5,
-  "risk": 3,
-  "execution_mode": "delegated",
-  "requested_model": "gpt-5.6-terra",
-  "requested_reasoning": "high",
-  "current_model": null,
-  "current_reasoning": null,
-  "runtime_status": "accepted_unverified",
-  "fallback": null,
-  "retry_count": 0,
-  "escalations": [],
-  "review_model": "gpt-5.6-terra",
-  "validation": "pass",
-  "outcome": "pass"
-}
+{"router_version":"0.3.1","task":"bounded-fix","coordinator_model":"gpt-6-astra","coordinator_reasoning":"high","coordinator_actual_model":null,"coordinator_actual_reasoning":null,"coordinator_runtime_status":"accepted_unverified","complexity":9,"risk":6,"execution_mode":"delegated","requested_model":"gpt-6-astra","requested_reasoning":"high","current_model":null,"current_reasoning":null,"runtime_status":"accepted_unverified","fallback":null,"attempt_count":1,"retry_count":0,"escalations":[],"review_model":"gpt-6-astra","review_reasoning":"high","review_runtime_status":"accepted_unverified","validation":"pass","outcome":"pass"}
 ```
 
-For direct execution, keep requested worker fields null and record the current session only when the runtime exposes it reliably:
+For `direct`, requested worker fields are null. For `current`, record the selected route and confirmed current metadata. Outcome `pass` requires completed acceptance criteria/review; use `blocked` or `fail` otherwise. Keep usage fields optional and null/absent if not exposed. Never invent token savings, prices or percentage quality scores. Evaluate threshold changes only after roughly 20–30 real comparable tasks using failures, total usage and review findings, not model names alone.
 
-```json
-{
-  "router_version": "0.2.1",
-  "task": "short non-sensitive label",
-  "complexity": 1,
-  "risk": 1,
-  "execution_mode": "direct",
-  "requested_model": null,
-  "requested_reasoning": null,
-  "current_model": null,
-  "current_reasoning": null,
-  "runtime_status": "direct",
-  "fallback": null,
-  "retry_count": 0,
-  "escalations": [],
-  "review_model": null,
-  "validation": "pass",
-  "outcome": "pass"
-}
-```
+## 9. Report
 
-Record token/usage data only when the runtime exposes it reliably; never estimate it.
-
-Do not tune routing thresholds until roughly 20-30 real routed tasks provide evidence.
-
-## 12. Final report
-
-Keep the user-facing report compact:
-
-```text
-Done.
-
-Routing:
-- Complexity: X/10
-- Risk: Y/10
-- Worker requested: <direct or model / effort>
-- Runtime: <direct | confirmed | accepted_unverified | mismatch | unavailable>
-- Fallback: <none or model / effort>
-- Review: <model / effort or not required>
-- Escalations: <none or short summary>
-
-Changed:
-- <files/components>
-
-Validation:
-- <checks/results>
-
-Remaining uncertainty:
-- <none or concrete caveat>
-```
-
-Scores and routing metadata may be shown. Do not expose private chain-of-thought.
-
-## v0.2.1 boundary
-
-Do not add custom model-pinned agent TOMLs, Agents SDK, MCP orchestration, external services, databases, dashboards, nested agent hierarchies, automatic `max` reasoning, or repeated retry loops unless measured results later justify them.
+Use the user's language. Report changes, validation, remaining uncertainty and one compact routing line with requested model/effort, actual runtime status, Astra High coordination, review and escalation when applicable. Show C/R if useful; do not dump factor tables or internal deliberation. Report limitations plainly, including when the environment could only recommend a model rather than execute it.
