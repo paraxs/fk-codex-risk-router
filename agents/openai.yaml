@@ -1,14 +1,8 @@
 interface:
-  display_name: FK Router
-  short_description: Astra High führt und prüft; Coding-Modelle nach Aufwand
-  default_prompt: Nutze $codex-risk-router mit GPT-6 Astra High für Leitung und Prüfung;
-    wähle das ausführende Coding-Modell passend zur Aufgabe.
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
+  display_name: "FK Router"
+  short_description: "Astra High führt und prüft; Coding-Modelle nach Aufwand"
+  default_prompt: "Nutze $codex-risk-router mit GPT-6 Astra High für Leitung und Prüfung; wähle das ausführende Coding-Modell passend zur Aufgabe."
+  icon_small: "./assets/icon.svg"
+  icon_large: "./assets/icon.svg"
 policy:
   allow_implicit_invocation: false
-  products:
-  - chatgpt
-  - codex
-  - api
-  - atlas

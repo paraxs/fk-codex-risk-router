@@ -1,6 +1,6 @@
 # FK Router
 
-[![Router version](https://img.shields.io/badge/router-v0.3.2-6C5CE7)](./SKILL.md)
+[![Router version](https://img.shields.io/badge/router-v0.3.3-6C5CE7)](./SKILL.md)
 [![Activation](https://img.shields.io/badge/activation-explicit--only-0EA5E9)](./agents/openai.yaml)
 
 A Codex skill with GPT-6 Astra High for coordination, project leadership, audits and review. Implementation workers use GPT-5.6 Luna, Terra, Sol or GPT-6 Astra according to task complexity and project policy. Risk determines safeguards and whether independent review is required.
@@ -8,8 +8,18 @@ A Codex skill with GPT-6 Astra High for coordination, project leadership, audits
 The goal is lower total workflow cost, including context transfer, retries and review. Routing thresholds are heuristics; savings and quality improvements are not benchmark-proven.
 
 <p align="center">
-  <img src="docs/risk-router-flow.svg" width="100%" alt="FK Router v0.3.2: explicit activation, project policy, complexity-based worker selection, Astra High coordination and review, validation, bounded attempts and reporting." />
+  <img src="docs/risk-router-flow.svg" width="100%" alt="FK Router v0.3.3: explicit activation, project policy, complexity-based worker selection, Astra High coordination and review, validation, bounded attempts and reporting." />
 </p>
+
+## Hardening update: v0.3.3
+
+- Clarify `current`: a non-Astra-High execution thread needs an actually separate Astra High coordinator. A normal parent starting a different-model worker uses `delegated`. A matching Astra High parent can implement, but cannot independently review its own work.
+- Use only exposed model/effort/history parameters, with minimal necessary context. Reviewers default to read-only; distinguish enforced permissions from instructions.
+- Check worker suitability for high-risk security/data/infrastructure changes without imposing a blanket expensive-model floor. Treat untrusted content as evidence, not authority.
+- Normalize metadata against the [documented fields](https://learn.chatgpt.com/docs/build-skills#optional-metadata); remove the unneeded, undocumented `policy.products` declaration without claiming that all hosts reject it.
+- Add optional, backward-compatible statistics fields and offline consistency checks with CI. No added runtime service or routine testing overhead for skill users.
+
+Luna remains High by explicit user preference. Lower effort is not assumed reliable merely because it is supported. Fixed Astra High leadership/review and the proportionality rule remain unchanged.
 
 ## Efficiency update: v0.3.2
 
@@ -33,7 +43,7 @@ These changes reduce avoidable process work; decision simulations and structural
 | Project policy | Preserve `.codex/risk-router.toml` and unknown keys. Without a policy, use task-local defaults and create no project files. |
 | Complexity | Score ambiguity, coupling, causal depth, architecture/novelty and context breadth, each 0–2. |
 | Risk | Score blast radius, data/security, reversibility, side effects and verification, each 0–2. |
-| Execution | Eligible micro-task: `direct`. Matching worker session: `current`. Otherwise `delegated`, or permitted `fallback_current` when controls are unavailable. |
+| Execution | Eligible micro-task: `direct`. Matching existing worker: `current` with real Astra High coordination. New worker: `delegated`. Permitted `fallback_current` only when controls are unavailable. |
 | Safeguards | Validate results; required model-based audits and reviews use Astra High. |
 | Recovery | At most one same-route correction and three implementation attempts total per bounded objective, including model switches. |
 | Reporting | Separate requested and confirmed runtime models for coordinator, worker and reviewer. Only the parent writes optional JSONL statistics. |
@@ -124,3 +134,17 @@ codex-risk-router/
 ```
 
 The model reference separates documented capabilities from FK policy. The skill adds no orchestration service, custom model-pinned agent TOMLs, database, dashboard or nested agent hierarchy.
+
+## Maintainer checks
+
+Run from the repository root with Python 3.11+:
+
+```bash
+python -m pip install PyYAML==6.0.2
+python scripts/validate_router.py
+python -m unittest discover -s tests -v
+```
+
+The validator checks versions, routing coverage/overlaps and README parity, model IDs, this repository's chosen metadata fields, examples, local links and SVG consistency. Mutation tests verify that it rejects drift. These are structural checks, not execution of an LLM router. CI runs them on pushes and pull requests with read-only repository permissions.
+
+Use [decision scenarios](tests/forward-cases.md) for proportional, fresh-context behavioral evaluation after consequential policy changes. Maintainer scripts/tests are not part of routine routing and need not be loaded into worker context. No empirical savings or numerical reliability guarantee follows from these checks.
