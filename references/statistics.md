@@ -1,25 +1,22 @@
 # Optional task statistics
 
-Read only when `stats = true`. Only the parent appends one compact JSON object per bounded task to `.codex/risk-router-log.jsonl` after acceptance or a final block/failure. Preserve existing entries and schema compatibility. Do not log code, prompts, diffs, secrets or user data. Use a generic task label. Do not read accumulated history merely to append a result.
-
-Example (one JSONL line):
+Read only when `stats = true`. The parent writes one compact JSON object after the current work unit stops. Do not read old entries merely to append a new one. Workers and reviewers never write statistics.
 
 ```json
-{"schema_version":1,"recorded_at":null,"router_version":"0.3.3","task":"bounded-fix","task_class":"code-fix","coordinator_model":"gpt-6-astra","coordinator_reasoning":"high","coordinator_actual_model":null,"coordinator_actual_reasoning":null,"coordinator_runtime_status":"accepted_unverified","complexity":9,"risk":6,"execution_mode":"delegated","requested_model":"gpt-6-astra","requested_reasoning":"high","current_model":null,"current_reasoning":null,"runtime_status":"accepted_unverified","fallback":null,"attempt_count":1,"retry_count":0,"escalations":[],"review_model":"gpt-6-astra","review_reasoning":"high","review_actual_model":null,"review_actual_reasoning":null,"review_runtime_status":"accepted_unverified","first_pass_success":true,"blocking_review_findings":0,"validation_failures":0,"validation":"pass","outcome":"pass"}
+{"schema_version":2,"recorded_at":null,"router_version":"0.4.0","task_class":"code-fix","complexity":6,"risk":4,"mode":"balanced","work_units_authorized":1,"work_units_completed":1,"execution_mode":"delegated","leadership_policy":"adaptive","coordinator_model":null,"coordinator_reasoning":null,"coordinator_runtime_status":"direct","requested_worker_model":"gpt-5.6-terra","requested_worker_reasoning":"high","worker_runtime_status":"accepted_unverified","implementation_attempts":1,"workers_started":1,"review_required":true,"requested_review_model":"gpt-5.6-sol","requested_review_reasoning":"high","review_runtime_status":"accepted_unverified","reviewers_started":1,"blocking_review_findings":0,"validation_failures":0,"validation":"pass","stop_reason":"work_unit_complete","outcome":"pass"}
 ```
 
-The example is illustrative, not an execution record. New records use `schema_version = 1` and `recorded_at` as an observed UTC ISO-8601 timestamp, or null if unavailable. Retain legacy entries without these fields; no rewrite/migration is required. Additional optional fields:
+Rules:
 
-- `task_class`: generic category such as `code-fix`, `feature`, `docs`, `analysis` or `other`; no project/file names.
-- `first_pass_success`: true only when the initial implementation passes acceptance including required review without a corrective attempt or blocking finding; false when observed otherwise, null if unknown/not applicable.
-- `blocking_review_findings` and `validation_failures`: counts observed across the bounded task, including resolved findings/failures; count a carried-forward finding once, and use null if not reliably tracked. These counts may be nonzero for an eventual pass.
-- `workflow_usage`: optional aggregate token counts with scope/unit/source, only if reliable for all contributing roles/attempts. Keep partial measurements labeled partial, never present them as totals.
-- `elapsed_seconds`: observed whole-task wall time, not the sum of concurrent agent durations; absent/null if unavailable.
+- `recorded_at` is an observed UTC ISO-8601 timestamp or null.
+- Use generic task classes such as `code-fix`, `feature`, `docs`, `analysis` or `other`; record no project names, file names, prompts, code, secrets or user data.
+- Keep actual model/effort fields absent or null unless the host exposes them. Accepted selection is not confirmation.
+- `implementation_attempts` includes the initial implementation and one possible correction/model switch. It cannot exceed 2 for the default work unit.
+- `workers_started` cannot exceed 1 and `reviewers_started` cannot exceed 1 under the default budget.
+- `pass` requires completed acceptance checks and any required review.
+- A missing required check or review produces `blocked`, not an assumed pass.
+- A telemetry write failure does not justify rerunning implementation.
 
-Do not add tool calls solely to collect optional counters. Use existing evidence; unknown is not zero.
+Optional `workflow_usage` and `elapsed_seconds` may be recorded only when complete and reliably exposed. Label partial usage as partial; never present it as a total. Do not add calls solely to collect optional counters.
 
-Keep `execution_mode` separate from runtime status. Actual model/effort fields stay null unless exposed; accepted requests are not confirmation. Record coordinator, worker and reviewer independently. For `direct`, requested worker fields are null and worker status is `direct`. For `current`, record selected route and confirmed current metadata. When no reviewer ran, review fields are null; a required unavailable review blocks acceptance, not an implicit pass.
-
-`attempt_count` includes the initial implementation and corrections/model switches; `retry_count` excludes the initial attempt. Pre-execution provider failures do not count as implementation attempts. `pass` requires completed acceptance criteria and required review; use `blocked` or `fail` otherwise.
-
-Usage and elapsed-time fields are optional; leave them absent/null when not reliably exposed. Include all contributing roles and attempts in workflow totals; do not double-count cumulative session usage. No invented prices, savings or quality percentages. A logging failure should be disclosed but does not invalidate otherwise verified task acceptance; do not rerun implementation to repair telemetry.
+Retain legacy schema-v1 records without migration. Compare cost only across similar accepted work units using total workflow usage, elapsed time, retry rate and blocking review findings. Do not tune routing from worker tokens alone.

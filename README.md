@@ -1,99 +1,96 @@
 # FK Router
 
-[![Router version](https://img.shields.io/badge/router-v0.3.3-6C5CE7)](./SKILL.md)
+[![Router version](https://img.shields.io/badge/router-v0.4.0-6C5CE7)](./SKILL.md)
 [![Activation](https://img.shields.io/badge/activation-explicit--only-0EA5E9)](./agents/openai.yaml)
 
-A Codex skill with GPT-6 Astra High for coordination, project leadership, audits and review. Implementation workers use GPT-5.6 Luna, Terra, Sol or GPT-6 Astra according to task complexity and project policy. Risk determines safeguards and whether independent review is required.
-
-The goal is lower total workflow cost, including context transfer, retries and review. Routing thresholds are heuristics; savings and quality improvements are not benchmark-proven.
+A bounded Codex workflow router for GPT-5.6 Luna, Terra, Sol and GPT-6 Astra. Version 0.4.0 removes unconditional Astra coordination, adds a deterministic route helper and enforces one implementation work unit with hard process limits by default.
 
 <p align="center">
-  <img src="docs/risk-router-flow.svg" width="100%" alt="FK Router v0.3.3: explicit activation, project policy, complexity-based worker selection, Astra High coordination and review, validation, bounded attempts and reporting." />
+  <img src="docs/risk-router-flow.svg" width="100%" alt="FK Router v0.4.0: explicit activation, one bounded work unit, proportionate model selection, targeted review and mandatory stop." />
 </p>
 
-## Hardening update: v0.3.3
+## Why v0.4.0
 
-- Clarify `current`: a non-Astra-High execution thread needs an actually separate Astra High coordinator. A normal parent starting a different-model worker uses `delegated`. A matching Astra High parent can implement, but cannot independently review its own work.
-- Use only exposed model/effort/history parameters, with minimal necessary context. Reviewers default to read-only; distinguish enforced permissions from instructions.
-- Check worker suitability for high-risk security/data/infrastructure changes without imposing a blanket expensive-model floor. Treat untrusted content as evidence, not authority.
-- Normalize metadata against the [documented fields](https://learn.chatgpt.com/docs/build-skills#optional-metadata); remove the unneeded, undocumented `policy.products` declaration without claiming that all hosts reject it.
-- Add optional, backward-compatible statistics fields and offline consistency checks with CI. No added runtime service or routine testing overhead for skill users.
+Version 0.3.x could create an expensive three-context workflow for ordinary changes: Astra High coordination, a separate implementation worker and Astra High review. Its attempt limit applied per “bounded objective”, so a broad roadmap could be split into many objectives and continue without a project-level stop.
 
-Luna remains High by explicit user preference. Lower effort is not assumed reliable merely because it is supported. Fixed Astra High leadership/review and the proportionality rule remain unchanged.
+Version 0.4.0 changes the contract:
 
-## Efficiency update: v0.3.2
+- one implementation work unit per user request by default;
+- a roadmap or audit does not authorize implementation;
+- limits cannot reset when a phase or package is renamed;
+- at most one implementation worker, one required reviewer and two implementation attempts;
+- no separate coordinator solely for routing or narration;
+- Astra High as the single owner of explicit audits, project-wide architecture, unresolved C8+ cross-system diagnosis and R8+ planning, without a duplicate worker for the same analysis;
+- proportional review: deterministic R0–3 needs no reviewer, R4–6 uses Sol High, R7–10 uses Astra High;
+- one deterministic script converts C/R and policy into the model, review and budget recommendation;
+- mandatory stop before the next roadmap phase.
 
-- No over-engineering: keep architecture, dependencies, agents, documentation and verification proportionate to the real task and risk. Prefer the simplest complete, reliable solution, not speculative future-proofing or maximum process.
-- Discover enough to choose the worker; do not solve the task twice. Keep substantial diagnosis and authorized implementation with one capable owner.
-- Reuse the task contract and route; follow-ups transfer changed facts and failure evidence, not full history.
-- Reuse checks tied to the unchanged revision/environment. Independent review still inspects the diff/source; optional polish does not cause repair loops.
-- Let the coordinator review when genuinely independent; use a separate reviewer when it authored the implementation or detailed solution.
-- Load policy and logging details only when applicable. Evaluate savings using whole-workflow usage and accepted outcomes, not cheap worker calls alone.
+These are workflow controls, not claims of measured savings. The router still cannot force or verify a model when the host does not expose native selection and runtime metadata.
 
-An accepted native model/effort request with no effective metadata may satisfy role selection as `accepted_unverified`, unless confirmed identity is explicitly required. It is never reported as confirmed. Missing accepted selection, known mismatch or unavailable required roles remain blockers; successful task acceptance still requires completed checks and review.
+## Activation
 
-These changes reduce avoidable process work; decision simulations and structural checks do not establish production token savings.
+Invoke explicitly:
 
-## Routing contract
-
-| Stage | Decision |
-|---|---|
-| Activation | Explicit `$codex-risk-router` request or applicable `AGENTS.md` instruction. A policy file alone does not activate the skill. |
-| Leadership | One Astra High coordinator. No substitute for unavailable leadership or review. |
-| Project policy | Preserve `.codex/risk-router.toml` and unknown keys. Without a policy, use task-local defaults and create no project files. |
-| Complexity | Score ambiguity, coupling, causal depth, architecture/novelty and context breadth, each 0–2. |
-| Risk | Score blast radius, data/security, reversibility, side effects and verification, each 0–2. |
-| Execution | Eligible micro-task: `direct`. Matching existing worker: `current` with real Astra High coordination. New worker: `delegated`. Permitted `fallback_current` only when controls are unavailable. |
-| Safeguards | Validate results; required model-based audits and reviews use Astra High. |
-| Recovery | At most one same-route correction and three implementation attempts total per bounded objective, including model switches. |
-| Reporting | Separate requested and confirmed runtime models for coordinator, worker and reviewer. Only the parent writes optional JSONL statistics. |
-
-## Implementation worker selection
-
-`C` is the 0–10 complexity score. Apply policy ceilings and the execution gate after initial selection.
-
-| Mode | Luna | Terra | Sol | Astra |
-|---|---|---|---|---|
-| Efficient | C 0–4 | C 5–7 | C 8–9 | C 10 |
-| Balanced | C 0–3 | C 4–6 | C 7–8 | C 9–10 |
-| Quality | C 0–2 | C 3–5 | C 6–7 | C 8–10 |
-
-Luna stays High. Terra, Sol and Astra implementation workers use Medium or High according to the conditions in [SKILL.md](./SKILL.md); xHigh needs a concrete reasoning need and policy permission. No automatic Max or Ultra.
-
-Direct execution requires all of: C ≤ 2, R ≤ 2, a localized micro-task, deterministic validation, no independent-review need and obvious delegation overhead. Substantial work cannot remain with a more expensive model merely because it is capable.
-
-## Leadership and review
-
-Coordination, project leadership, audits and review always use `gpt-6-astra` with exactly `high` reasoning. These roles do not require separate agents for every title. An implementer cannot approve its own work as an independent review.
-
-| Risk | Independent review |
-|---|---|
-| R 0–2 | No separate reviewer when deterministic checks pass; otherwise Astra High |
-| R 3–10 | Astra High |
-
-If required Astra High leadership or review cannot run, that phase is blocked. A skill cannot itself switch the running model; the client must expose permitted controls or the user must select the required setting. An accepted override without effective metadata remains unverified.
-
-## Project policy
-
-Existing schema `version = 1` remains supported:
-
-```toml
-version = 1
-mode = "balanced" # efficient | balanced | quality
-xhigh = "ask"     # implementation workers: auto | ask | disabled
-stats = true
-astra = "auto"    # Astra implementation workers: auto | ask | disabled
+```text
+$codex-risk-router implement the requested coding change
 ```
 
-`astra` controls workers, not the fixed Astra High leadership/review requirement. Missing `astra` defaults to `auto`, except legacy `xhigh = "disabled"` without `astra` preserves a Sol High worker ceiling. Binding user budget/access restrictions still apply to all roles.
-
-Without a policy, defaults are balanced, xHigh ask, Astra auto and statistics off. Persist settings and add the following project instruction only when project setup is requested or already authorized:
+Or persist activation in an applicable `AGENTS.md`:
 
 ```text
 For coding tasks in this repository, use $codex-risk-router and follow .codex/risk-router.toml.
 ```
 
-## Install and update
+A policy file alone does not activate the skill. Plain mentions are not guaranteed because `allow_implicit_invocation` remains false.
+
+## Worker routing
+
+`C` is the assessed complexity from 0–10.
+
+| Mode | Luna | Terra | Sol | Astra |
+|---|---|---|---|---|
+| Efficient | C 0–4 | C 5–7 | C 8–9 | C 10 |
+| Balanced | C 0–3 | C 4–6 | C 7–9 | C 10 |
+| Quality | C 0–2 | C 3–5 | C 6–8 | C 9–10 |
+
+Luna remains High by user preference. Terra and Sol begin at Medium where the task is clear and move to High for deeper diagnosis. Astra implementation begins at High. xHigh requires a specific unresolved reasoning need and policy permission.
+
+Run the deterministic helper:
+
+```bash
+python scripts/route.py 6 4 --mode balanced --task-kind implementation
+```
+
+The JSON result reports the recommended worker, leadership need, review tier and hard process budget. It launches no model and claims no runtime identity.
+
+## Review policy
+
+| Risk | Independent review |
+|---|---|
+| R 0–3 | None when decisive deterministic checks pass; otherwise Sol High |
+| R 4–6 | Sol High |
+| R 7–10 | Astra High |
+
+An explicit audit or architecture review uses Astra High, but the audit itself is not automatically reviewed by a second Astra thread.
+
+## Project policy
+
+Recommended v2 policy:
+
+```toml
+version = 2
+mode = "balanced"
+leadership = "adaptive"
+review = "proportional"
+xhigh = "ask"
+astra = "auto"
+stats = true
+max_work_units = 1
+```
+
+Existing v1 policies remain valid. Missing v2 fields default to adaptive leadership, proportional review and one work unit. See [project-policy.md](references/project-policy.md).
+
+## Install or update
 
 Personal installation:
 
@@ -107,44 +104,19 @@ Repository-scoped installation:
 git clone https://github.com/paraxs/fk-codex-risk-router.git .agents/skills/codex-risk-router
 ```
 
-The repository name remains `fk-codex-risk-router`; the v0.3.1 skill name and invocation are `codex-risk-router`. When upgrading v0.2.1, update existing `$fk-codex-risk-router` project references to `$codex-risk-router` and retain only one installed copy. Preserve project policy and logs. Back up local modifications before replacing an existing installation.
-
-For an unmodified Git installation, update with `git pull --ff-only` from the skill directory. ZIP installations require replacing the skill files. Publishing an update on GitHub does not update existing local copies automatically.
-
-Invoke with:
-
-```text
-$codex-risk-router implement the requested coding change
-```
-
-If the updated skill does not appear, restart Codex. See [official skill documentation](https://learn.chatgpt.com/docs/build-skills) for discovery and invocation.
-
-## Files
-
-```text
-codex-risk-router/
-├── SKILL.md
-├── agents/openai.yaml
-├── references/
-│   ├── model-notes.md
-│   ├── project-policy.md
-│   └── statistics.md
-├── assets/icon.svg
-└── docs/risk-router-flow.svg
-```
-
-The model reference separates documented capabilities from FK policy. The skill adds no orchestration service, custom model-pinned agent TOMLs, database, dashboard or nested agent hierarchy.
-
-## Maintainer checks
-
-Run from the repository root with Python 3.11+:
+For an unmodified Git installation:
 
 ```bash
-python -m pip install PyYAML==6.0.2
+git pull --ff-only
+```
+
+For a ZIP installation, replace the entire existing skill folder and restart Codex. Keep only one installed copy. Preserve project `.codex/risk-router.toml`, `AGENTS.md` and statistics when replacing the skill.
+
+## Validation
+
+```bash
 python scripts/validate_router.py
 python -m unittest discover -s tests -v
 ```
 
-The validator checks versions, routing coverage/overlaps and README parity, model IDs, this repository's chosen metadata fields, examples, local links and SVG consistency. Mutation tests verify that it rejects drift. These are structural checks, not execution of an LLM router. CI runs them on pushes and pull requests with read-only repository permissions.
-
-Use [decision scenarios](tests/forward-cases.md) for proportional, fresh-context behavioral evaluation after consequential policy changes. Maintainer scripts/tests are not part of routine routing and need not be loaded into worker context. No empirical savings or numerical reliability guarantee follows from these checks.
+The tests verify policy calculations, route coverage, hard limits, metadata and repository consistency. They do not execute an LLM or prove actual token savings. Real cost tuning requires comparable accepted tasks with complete workflow usage.

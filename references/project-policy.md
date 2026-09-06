@@ -1,25 +1,62 @@
 # Project policy
 
-Read only when `.codex/risk-router.toml` exists or the user requests persistent setup. A policy file alone does not activate the skill. Existing schema `version = 1` remains supported; preserve unknown keys and accept `quality-first` as an alias for `quality`.
+Read this file only when `.codex/risk-router.toml` exists or the user requests persistent router setup.
+
+## Recommended v2 policy
+
+```toml
+version = 2
+mode = "balanced"          # efficient | balanced | quality
+leadership = "adaptive"    # adaptive | astra
+review = "proportional"    # proportional | astra
+xhigh = "ask"              # auto | ask | disabled
+astra = "auto"             # implementation worker: auto | ask | disabled
+stats = true
+max_work_units = 1         # 1-3; still bounded by the current user authorization
+```
+
+Meanings:
+
+- `leadership = "adaptive"`: keep ordinary routing in the current thread. Use Astra High as the single task owner for explicit audits, project-wide architecture, unresolved C8+ cross-system diagnosis or R8+ planning; do not place it in front of a duplicate worker for the same analysis.
+- `leadership = "astra"`: require Astra High coordination for every routed task. This is an intentionally expensive opt-in.
+- `review = "proportional"`: no reviewer for R0–3 with decisive checks, Sol High for R4–6 and Astra High for R7–10.
+- `review = "astra"`: upgrade every otherwise-required independent review to Astra High. It does not create a review when none is required.
+- `astra`: controls implementation workers only. `ask` requires task-scoped approval; `disabled` caps implementation at Sol High.
+- `xhigh`: permits or restricts xHigh for Sol/Astra implementation workers. It never changes leadership or review effort.
+- `max_work_units`: hard upper bound for the current request. It never grants implementation authority by itself and never permits silently continuing to the next roadmap phase.
+
+## Existing v1 policy
+
+Version 1 remains valid:
 
 ```toml
 version = 1
-mode = "balanced" # efficient | balanced | quality
-xhigh = "ask"     # auto | ask | disabled
+mode = "balanced"
+xhigh = "ask"
 stats = true
-astra = "auto"    # implementation workers only; auto | ask | disabled; optional
+astra = "auto"
 ```
 
-- `xhigh` applies to Sol/Astra workers only. `auto` permits justified xHigh; `ask` needs task-scoped approval unless already granted; `disabled` forbids it. Never bypass a refusal with Max/Ultra. Leadership/review remain exactly High.
-- `astra` controls implementation workers, not leadership/review. `auto` permits warranted Astra workers; `ask` needs task-scoped approval unless already granted; `disabled` caps workers at Sol. Standing Astra High leadership/review authorization needs no repeated approval.
-- Missing `astra` means `auto`, except an existing `xhigh = "disabled"` without `astra` retains a **Sol High implementation ceiling**. Explicit `astra = "auto"` allows Astra workers up to High with xHigh disabled. Since v0.3.1, fixed leadership/review supersedes that old router ceiling only for those roles. Explain this distinction when relevant; preserve the file. Separate binding access/budget restrictions or a later explicit prohibition still block the role, never authorize a substitute.
-- Without a policy, use task-local balanced, xHigh ask, Astra auto, stats off. Do not create settings or interrupt work for setup.
-- If a known setting is malformed or unsupported, report it and resolve the affected route; do not silently treat an invalid restriction as permission. Unrelated unknown keys stay untouched.
+Interpret missing v2 fields as:
 
-Persist settings only when requested or already authorized. Reuse user preferences; preserve other content. Only as part of authorized setup, add this opt-in to applicable `AGENTS.md` if absent:
+```toml
+leadership = "adaptive"
+review = "proportional"
+max_work_units = 1
+```
+
+Do not preserve the v0.3 fixed-Astra behavior merely because the policy predates v0.4. Fixed Astra leadership now requires the explicit v2 setting `leadership = "astra"`.
+
+For backward compatibility, missing `astra` normally means `auto`. A v1 policy with `xhigh = "disabled"` and no `astra` retains the old Sol High implementation ceiling. This exception affects workers only.
+
+Unknown keys remain untouched. Invalid known settings are reported and do not become permission.
+
+## Setup
+
+Persist settings only when requested or already authorized. Add this line to the applicable `AGENTS.md` only as part of that setup:
 
 ```text
 For coding tasks in this repository, use $codex-risk-router and follow .codex/risk-router.toml.
 ```
 
-These are router policy fields, not native model configuration. Do not rewrite global client settings. Updating the skill does not automatically update separate installed copies, project policies or logs.
+The policy activates nothing by itself. It does not modify global client settings, grant external-write authority or prove model availability. Updating the skill does not automatically update installed copies or project policies.
