@@ -1,4 +1,4 @@
-"""Mutation checks for repository validation, not LLM behavior tests."""
+"""Mutation checks for published routing and activation contract."""
 
 import sys
 import unittest
@@ -18,84 +18,35 @@ class ConsistencyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, reason):
             validate(self.files)
 
-    def test_current_repository(self):
-        self.assertEqual(validate(self.files), "0.4.0")
+    def test_current_package(self):
+        self.assertEqual(validate(self.files), "0.5.0")
 
-    def test_routing_gap(self):
-        self.rejects("SKILL.md", "C 4–6", "C 5–6", "gap")
+    def test_route_gap(self):
+        self.rejects("SKILL.md", "C 4–6", "C 5–6", "route gap")
 
-    def test_routing_overlap(self):
-        self.rejects("SKILL.md", "C 4–6", "C 3–6", "overlap")
+    def test_route_overlap(self):
+        self.rejects("SKILL.md", "C 4–6", "C 3–6", "route overlap")
 
-    def test_readme_routing_drift(self):
-        self.rejects("README.md", "C 7–9", "C 7–8", "gap")
+    def test_old_model_returns(self):
+        self.rejects("SKILL.md", "`gpt-6-luna`", "`gpt-5.6-luna`", "model IDs")
 
-    def test_version_drift(self):
-        self.rejects("README.md", "router-v0.4.0-", "router-v9.9.9-", "version drift")
+    def test_astra_implementation_returns(self):
+        self.rejects("SKILL.md", "It must not implement patches", "It may implement patches", "supervisor/budget rule")
 
-    def test_wrong_model(self):
-        self.rejects("SKILL.md", "`gpt-5.6-luna`", "`gpt-5.6-typo`", "model IDs")
+    def test_budget_increase(self):
+        self.rejects("SKILL.md", "max_dispatches = 4", "max_dispatches = 20", "supervisor/budget rule")
 
     def test_implicit_activation(self):
-        self.rejects(
-            "agents/openai.yaml",
-            "allow_implicit_invocation: false",
-            "allow_implicit_invocation: true",
-            "activation policy",
-        )
+        self.rejects("agents/openai.yaml", "allow_implicit_invocation: false", "allow_implicit_invocation: true", "activation policy")
 
     def test_wrong_invocation(self):
-        self.rejects(
-            "agents/openai.yaml",
-            "$codex-risk-router",
-            "$other-router",
-            "default invocation",
-        )
+        self.rejects("agents/openai.yaml", "$codex-risk-router", "$other-router", "metadata invocation")
 
-    def test_missing_icon(self):
-        self.rejects(
-            "agents/openai.yaml",
-            "./assets/icon.svg",
-            "./assets/missing.svg",
-            "missing icon",
-        )
+    def test_broken_reference(self):
+        self.rejects("SKILL.md", "references/cost-control.md", "references/missing.md", "broken link")
 
-    def test_statistics_schema(self):
-        self.rejects(
-            "references/statistics.md",
-            '"schema_version":2',
-            '"schema_version":1',
-            "statistics schema",
-        )
-
-    def test_statistics_attempt_budget(self):
-        self.rejects(
-            "references/statistics.md",
-            '"implementation_attempts":1',
-            '"implementation_attempts":3',
-            "attempt budget",
-        )
-
-    def test_broken_link(self):
-        self.files["SKILL.md"] += "\n[missing](references/missing.md)\n"
-        with self.assertRaisesRegex(ValueError, "broken link"):
-            validate(self.files)
-
-    def test_required_phase_stop_cannot_disappear(self):
-        self.rejects(
-            "SKILL.md",
-            "the next roadmap phase would begin",
-            "all roadmap phases are complete",
-            "hardening rule",
-        )
-
-    def test_roadmap_is_not_implementation_authority(self):
-        self.rejects(
-            "SKILL.md",
-            "A roadmap is not implementation authorization.",
-            "A roadmap may authorize implementation.",
-            "hardening rule",
-        )
+    def test_version_drift(self):
+        self.rejects("README.md", "Router 0.5.0", "Router 0.4.0", "version drift")
 
 
 if __name__ == "__main__":

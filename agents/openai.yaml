@@ -1,7 +1,7 @@
 interface:
   display_name: "FK Router"
-  short_description: "Ein Arbeitspaket, passende Modelle, klare Stopps"
-  default_prompt: "Nutze $codex-risk-router für genau ein begrenztes Arbeitspaket mit passendem Modell, gezielter Prüfung und hartem Stopp."
+  short_description: "Astra steuert, Luna und Sol erledigen die Arbeit"
+  default_prompt: "Nutze $codex-risk-router: Astra soll klassifizieren und prüfen, Luna oder Sol sollen die Arbeit ausführen."
   icon_small: "./assets/icon.svg"
   icon_large: "./assets/icon.svg"
 policy:
